@@ -43,6 +43,11 @@
   :type 'boolean
   :group 'org-doing)
 
+(defcustom org-doing-auto-start-next-item nil
+  "When non-nil, org-doing-done promote the next LATER item to TODO."
+  :type 'boolean
+  :group 'org-doing)
+
 (defun org-doing-find-or-create-file ()
   "Opens the `org-doing-file', if it doesn't exist, creates it.
 
@@ -76,7 +81,11 @@ later."
   "Inserts a new heading into `org-doing-file' that's marked as DONE.
 
 If `description' is nil or a blank string, marks the most recent
-TODO item as DONE (see `org-doing-done-most-recent-item'.)"
+TODO item as DONE (see `org-doing-done-most-recent-item'.)
+
+If `org-doing-auto-start-next-item' is non-nil and there are no TODO
+items, find the most recent LATER item and mark it TODO.
+"
   (interactive "sDone? ")
   (org-doing-find-or-create-file)
   (if (zerop (length description))
@@ -86,6 +95,8 @@ TODO item as DONE (see `org-doing-done-most-recent-item'.)"
       (goto-char (point-max)))
     (insert "* DONE " description "\n"
             "  " (format-time-string "<%Y-%m-%d %a %H:%M>\n")))
+  (when org-doing-auto-start-next-item
+    (org-doing-start-next-item))
   (save-buffer)
   (when org-doing-bury-buffer
     (bury-buffer)))
@@ -94,6 +105,14 @@ TODO item as DONE (see `org-doing-done-most-recent-item'.)"
   "Marks the most recent item in `org-doing-file' as DONE."
   (if (search-forward-regexp "^* TODO" nil t)
     (org-todo 'done)))
+
+(defun org-doing-start-next-item ()
+  "If there are no TODO items, finds the first item marked LATER and change it to TODO."
+  (goto-char (point-min))
+  (unless (search-forward-regexp "^* TODO" nil t)
+    (goto-char (point-min))
+    (when (search-forward-regexp "^* LATER" nil t)
+      (org-todo "TODO"))))
 
 ;;;###autoload
 (defun org-doing (command)
